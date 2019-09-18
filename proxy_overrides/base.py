@@ -18,7 +18,13 @@ def override_model_field(model, name, field):
         related_name = field.remote_field.related_name
         if not related_name:
             related_name = original_field.remote_field.get_accessor_name()
-        related_model = getattr(field.remote_field.model, related_name).rel.model
+        relation = getattr(field.remote_field.model, related_name)
+        if hasattr(relation, 'related'):
+            related_model = relation.related.model
+        elif hasattr(relation, 'rel'):
+            related_model = relation.rel.model
+        else:
+            raise ValueError('Unable to find related model.')
 
         if related_model._meta.proxy:
             raise TypeError('There is already a proxy model {!r} related to {!r} using {!r}'.format(

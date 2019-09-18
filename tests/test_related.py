@@ -1,20 +1,65 @@
 from django.test import TestCase
 
-from .models import Foo, Bar, FooProxy, BarProxy, BarChild, FooChildProxy
+from .models import (
+    Foo,
+    FooChild,
+    FooProxy,
+    RelatedFK,
+    RelatedFKChildProxy,
+    RelatedFKProxy,
+    RelatedO2O,
+    RelatedO2OChildProxy,
+    RelatedO2OProxy,
+)
 
 
 class TestRelated(TestCase):
     def test_original_relation(self):
-        bar = Bar.objects.create()
-        Foo.objects.create(bar=bar)
+        foo = Foo.objects.create()
+        RelatedFK.objects.create(foo=foo)
 
-        foo = Foo.objects.get()
-        self.assertEqual(Foo, foo.__class__)
-        self.assertEqual(Bar, foo.bar.__class__)
+        foo = RelatedFK.objects.get()
+        self.assertEqual(RelatedFK, foo.__class__)
+        self.assertEqual(Foo, foo.foo.__class__)
 
     def test_fk_field_override(self):
-        bar = Bar.objects.create()
-        Foo.objects.create(bar=bar)
+        foo = Foo.objects.create()
+        RelatedFK.objects.create(foo=foo)
+
+        foo = RelatedFKProxy.objects.get()
+
+        self.assertEqual(
+            RelatedFKProxy,
+            foo.__class__
+        )
+
+        self.assertEqual(
+            FooProxy,
+            foo.foo.__class__
+        )
+
+    def test_fk_child_override_child(self):
+        foo_child = FooChild.objects.create()
+        RelatedFK.objects.create(foo=foo_child)
+
+        foo = RelatedFKChildProxy.objects.get()
+
+        self.assertEqual(
+            RelatedFKChildProxy,
+            foo.__class__
+        )
+
+        self.assertEqual(
+            FooChild,
+            foo.foo.__class__
+        )
+
+        assert foo.foo.a == 1
+        assert foo.foo.b == 2
+
+    def test_reverse_fk_field_override(self):
+        foo = Foo.objects.create()
+        RelatedFK.objects.create(foo=foo)
 
         foo = FooProxy.objects.get()
 
@@ -24,64 +69,96 @@ class TestRelated(TestCase):
         )
 
         self.assertEqual(
-            BarProxy,
-            foo.bar.__class__
+            RelatedFKProxy,
+            foo.relatedfk_set.model
         )
 
-    def test_fk_child_override_child(self):
-        bar_child = BarChild.objects.create()
-        Foo.objects.create(bar=bar_child)
+    def test_reverse_fk_field_child_child(self):
+        foo_child = FooChild.objects.create()
+        RelatedFK.objects.create(foo=foo_child)
 
-        foo = FooChildProxy.objects.get()
+        foo_child = FooChild.objects.get()
 
         self.assertEqual(
-            FooChildProxy,
+            FooChild,
+            foo_child.__class__
+        )
+
+        self.assertEqual(
+            RelatedFKChildProxy,
+            foo_child.relatedfk_set.model
+        )
+
+    def test_o2o_field_override(self):
+        foo = Foo.objects.create()
+        RelatedO2O.objects.create(foo=foo)
+
+        foo = RelatedO2OProxy.objects.get()
+
+        self.assertEqual(
+            RelatedO2OProxy,
             foo.__class__
         )
 
         self.assertEqual(
-            BarChild,
-            foo.bar.__class__
+            FooProxy,
+            foo.foo.__class__
         )
 
-        assert foo.bar.a == 1
-        assert foo.bar.b == 2
+    def test_o2o_child_override_child(self):
+        foo_child = FooChild.objects.create()
+        RelatedO2O.objects.create(foo=foo_child)
 
-    def test_reverse_fk_field_override(self):
-        bar = Bar.objects.create()
-        Foo.objects.create(bar=bar)
-
-        bar = BarProxy.objects.get()
+        foo = RelatedO2OChildProxy.objects.get()
 
         self.assertEqual(
-            BarProxy,
-            bar.__class__
+            RelatedO2OChildProxy,
+            foo.__class__
         )
+
+        self.assertEqual(
+            FooChild,
+            foo.foo.__class__
+        )
+
+        assert foo.foo.a == 1
+        assert foo.foo.b == 2
+
+    def test_reverse_o2o_field_override(self):
+        foo = Foo.objects.create()
+        RelatedO2O.objects.create(foo=foo)
+
+        foo = FooProxy.objects.get()
 
         self.assertEqual(
             FooProxy,
-            bar.foo_set.model
-        )
-
-    def test_reverse_fk_field_child_child(self):
-        bar_child = BarChild.objects.create()
-        Foo.objects.create(bar=bar_child)
-
-        bar_child = BarChild.objects.get()
-
-        self.assertEqual(
-            BarChild,
-            bar_child.__class__
+            foo.__class__
         )
 
         self.assertEqual(
-            FooChildProxy,
-            bar_child.foo_set.model
+            RelatedO2OProxy,
+            foo.relatedo2o.model
+        )
+
+    def test_reverse_o2o_field_child_child(self):
+        foo_child = FooChild.objects.create()
+        RelatedO2O.objects.create(foo=foo_child)
+
+        foo_child = FooChild.objects.get()
+
+        self.assertEqual(
+            FooChild,
+            foo_child.__class__
+        )
+
+        self.assertEqual(
+            RelatedO2OChildProxy,
+            foo_child.relatedo2o.model
         )
 
     def test_exception_if_same_relation(self):
         with self.assertRaises(TypeError):
             from proxy_overrides.related import ProxyForeignKey
 
-            class FooNewProxy(Foo):
-                bar = ProxyForeignKey(BarProxy)
+            class RelatedFKNewProxy(RelatedFK):
+                foo = ProxyForeignKey(FooProxy)
